@@ -45,14 +45,14 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
     graph_height = height - top_margin - bottom_margin
 
     image=''
-    observations = forecast.observations(now)
+    predictions = forecast.predictions(now)
     min_temp = 10000
     max_temp = -10000
     time=None
-    for obs in observations.sequence:
+    for prediction in predictions.sequence:
         if time == None:
-            time = obs[0].astimezone()
-        temp = obs[1]['air_temperature']
+            time = prediction[0].astimezone()
+        temp = prediction[1]['air_temperature']
         min_temp = min(min_temp, math.floor(temp))
         max_temp = max(max_temp, math.ceil(temp))
     image+='  <svg height="{}" width="{}" xmlns="http://www.w3.org/2000/svg">\n'.format(height, width)
@@ -74,27 +74,27 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
         image+='    <line x1="{left:}" y1="{y:}" x2="{right:}" y2="{y:}" style="stroke:blue;stroke-width:1"/>\n'.format(y=y, left=left_margin, right=width-right_margin)
         image+='    <text x="2" y="{y:}" fill="{color:}">{text:}°</text>\n'.format(y=y, text=t, color=symbol_color)
     h=0
-    for obs in observations.sequence:
-        temp = obs[1]['air_temperature']
+    for prediction in predictions.sequence:
+        temp = prediction[1]['air_temperature']
         y=temp2y(temp)
         if h > 0:
             image+= '    <line x1="{prevx:}" y1="{prevy:}" x2="{x:}" y2="{y:}" style="stroke:{red:};stroke-width:4"/>\n'.format(prevx=h2x(h-1), prevy=temp2y(prev_temp), x=h2x(h), y=y, red=red)
         icony = y - 35 if y > height/2 else y + 15
-        image+= '    <image width="30" height="30" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(x=h2x(h)-15, y=icony, ref='file:{}/weather/svg/{}.svg'.format(homedir, obs[2]))
+        image+= '    <image width="30" height="30" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(x=h2x(h)-15, y=icony, ref='file:{}/weather/svg/{}.svg'.format(homedir, prediction[2]))
         image +='    {}\n'.format(windbarb(
-            obs[1]['wind_speed'],
-            obs[1]['wind_from_direction'],
+            prediction[1]['wind_speed'],
+            prediction[1]['wind_from_direction'],
             h2x(h)-2,
             height-bottom_margin+14,
             scale=0.4
         ))
         h+= 1
         prev_temp = temp
-    image+='    <image height="55" width="55" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(homedir, observations.current[2])
-    image+='    <text x="70" y="55" fill="{red:}" font-size="55">{}°C</text>\n'.format(observations.current[1]['air_temperature'], red=red)
+    image+='    <image height="55" width="55" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(homedir, predictions.current[2])
+    image+='    <text x="70" y="55" fill="{red:}" font-size="55">{}°C</text>\n'.format(predictions.current[1]['air_temperature'], red=red)
     image+='    {}\n'.format(windbarb(
-        observations.current[1]['wind_speed'],
-        observations.current[1]['wind_from_direction'],
+        predictions.current[1]['wind_speed'],
+        predictions.current[1]['wind_from_direction'],
         300, 35, 0.8))
     image+= '    <text x="350" y="55" fill="{color:}" font-size="40">{place:}</text>\n'.format(color=symbol_color, place=place)
     image+='  </svg>\n'

@@ -11,7 +11,7 @@ def parse_header_timestamp(timestamp):
 def parse_timestamp(timestamp):
     return datetime.fromisoformat(timestamp)
 
-class ObservationSet:
+class PredictionSet:
     def __init__(self, data, max = 12):
         self.data = data
         self.max = max
@@ -23,22 +23,22 @@ class ObservationSet:
     def __next__(self):
         if self.current >= self.max or self.current >= len(self.data):
             raise StopIteration
-        obs = self.data[self.current]
+        prediction = self.data[self.current]
         self.current += 1
-        return obs
+        return prediction
 
 WeatherData = namedtuple('WeatherData', ['current', 'sequence'])
 class wx:
     def __init__(self, json_data, headers):
-        self.observation_data = []
+        self.prediction_data = []
         for obs in json_data['properties']['timeseries']:
             data = obs['data']
             if not 'next_1_hours' in data:
                 continue
-            self.observation_data.append((parse_timestamp(obs['time']),
-                                          data['instant']['details'],
-                                          data['next_1_hours']['summary']['symbol_code']))
-        self.observation_data.sort(key = lambda obs: obs[0])
+            self.prediction_data.append((parse_timestamp(obs['time']),
+                                         data['instant']['details'],
+                                         data['next_1_hours']['summary']['symbol_code']))
+        self.prediction_data.sort(key = lambda obs: obs[0])
         expiry_time = headers['expires']
         self.expiry = parse_header_timestamp(expiry_time)
 
@@ -48,18 +48,18 @@ class wx:
     def has_expired(self, now):
         return self.expiry > now
 
-    def observations(self, now, max = 12):
+    def predictions(self, now, max = 12):
         current = None
-        while len(self.observation_data) > 0 and self.observation_data[0][0] < now:
-            current = self.observation_data.pop(0)
-        return WeatherData(current, ObservationSet(self.observation_data))
+        while len(self.prediction_data) > 0 and self.prediction_data[0][0] < now:
+            current = self.prediction_data.pop(0)
+        return WeatherData(current, PredictionSet(self.prediction_data))
 
 class Test_wx(unittest.TestCase):
     def test_expiry(self):
         forecast = wx({'properties': { 'timeseries': []}},{'expires': 'Tue, 25 Jun 2024 05:22:48 GMT'})
         self.assertEqual(forecast.next_update(), datetime(2024, 6, 25, 5, 22, 48, 0, pytz.timezone('GMT')))
 
-    def test_observations(self):
+    def test_predictions(self):
         data = {
             'properties': {
                 'timeseries': [
@@ -116,10 +116,10 @@ class Test_wx(unittest.TestCase):
         expected = [({'air_temperature': 19}, 'clearsky_day'),
                     ({'air_temperature': 17}, 'fog')]
         idx = 0
-        weather = forecast.observations(datetime(2024, 6, 25, 4, 30, 00, 0, pytz.utc))
-        for obs in weather.sequence:
-            self.assertEqual(expected[idx][0], obs[1])
-            self.assertEqual(expected[idx][1], obs[2])
+        weather = forecast.predictions(datetime(2024, 6, 25, 4, 30, 00, 0, pytz.utc))
+        for predictions in weather.sequence:
+            self.assertEqual(expected[idx][0], predictions[1])
+            self.assertEqual(expected[idx][1], predictions[2])
             idx += 1
         self.assertEqual(idx, 2)
 
