@@ -9,7 +9,8 @@ tested). It uses weather forecast data from
 Very experimental. Requires a python environment with the Pimoroni Inky
 [Python library](https://github.com/pimoroni/inky).
 Depending on your raspberry pi version and OS version, you may have to search
-forums  to find the right version/branch for you.
+forums  to find the right version/branch for you. Other required libraries are
+`pytz`, `urllib3`, `cairosvg` and `pillow`
 
 You also need to download [weather icons](https://github.com/metno/weathericons/)
 and store them in the directory `weather/svg` relative to the working directory
