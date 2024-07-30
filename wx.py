@@ -45,7 +45,6 @@ def run():
                 response = http.request(method='GET',
                                         url='https://api.met.no/weatherapi/locationforecast/2.0/complete?lat={lat:}&lon={lon:}'.format(lat=lat,lon=long),
                                         headers={"User-Agent": USER_AGENT})
-                print("got")
                 forecast = wx(response.json(), response.headers)
                 deadline = forecast.next_update() + timedelta(minutes=1)
             svg_image = render_hmtl(forecast, now, display.resolution, name)
@@ -54,7 +53,6 @@ def run():
             display.set_image(resized_image)
             display.show()
             waittime = min(deadline - now, timedelta(hours=1)) if deadline > now else timedelta(seconds=10)
-            print("deadline={}, now={}, wait={}".format(deadline, now, waittime))
             seconds = waittime.total_seconds()
             sleep(seconds)
         #except:
