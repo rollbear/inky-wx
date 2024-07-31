@@ -65,7 +65,7 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
         if max_rain * multiplier > temp_range:
             break
         rain_multiplier = multiplier
-    rain2y = lambda mm: height - bottom_margin - graph_height/temp_range*mm/rain_multiplier
+    rain2y = lambda mm: temp2y(mm*rain_multiplier + min_temp) # height - bottom_margin - graph_height/temp_range*mm/rain_multiplier
     image+='  <svg height="{}" width="{}" xmlns="http://www.w3.org/2000/svg">\n'.format(height, width)
     symbol_color = 'black'
     background_color = 'white'
@@ -83,13 +83,12 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
         image+='    <line x1="{left:}" y1="{y:}" x2="{right:}" y2="{y:}" style="stroke:blue;stroke-width:1"/>\n'.format(y=y, left=left_margin, right=width-right_margin)
         image+='    <text x="2" y="{y:}" fill="{color:}">{text:}°</text>\n'.format(y=y, text=t, color=symbol_color)
     def mm_scale():
-        mm=0
         mm_scale=''
-        while mm < max_rain + rain_multiplier:
-            y = rain2y(mm)
-            mm_scale+='    <text x="{x:}" y="{y:}">{text:}mm</text>\n'.format(y=y, x=width-right_margin+3, text=mm)
-            mm+= rain_multiplier
+        for y in range(temp_range):
+            mm=round(y/rain_multiplier)
+            mm_scale+='    <text x="{x:}" y="{y:}">{text:}mm</text>\n'.format(y=rain2y(mm), x=width-right_margin+3, text=mm)
         return mm_scale
+
     image+= mm_scale()
     #for step in range(0, (max_rain + rain_multiplier)/rain_multiplier):
     #    mm = step * rain_multiplier
