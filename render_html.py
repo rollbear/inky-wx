@@ -62,7 +62,7 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
     rain_multipliers = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50]
     rain_multiplier = 1
     for multiplier in rain_multipliers:
-        if max_rain * multiplier >= temp_range:
+        if max_rain * multiplier > temp_range:
             break
         rain_multiplier = multiplier
     rain2y = lambda mm: height - bottom_margin - graph_height/temp_range*mm/rain_multiplier
@@ -82,25 +82,24 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
         y = temp2y(t)
         image+='    <line x1="{left:}" y1="{y:}" x2="{right:}" y2="{y:}" style="stroke:blue;stroke-width:1"/>\n'.format(y=y, left=left_margin, right=width-right_margin)
         image+='    <text x="2" y="{y:}" fill="{color:}">{text:}°</text>\n'.format(y=y, text=t, color=symbol_color)
-    for mm in range(0, max_rain + rain_multiplier, rain_multiplier):
-        y = rain2y(mm)
-        image+='    <text x="{x:}" y="{y:}">{text:}mm</text>\n'.format(y=y,x=width-right_margin+3, text=mm)
+    def mm_scale():
+        mm=0
+        mm_scale=''
+        while mm < max_rain + rain_multiplier:
+            y = rain2y(mm)
+            mm_scale+='    <text x="{x:}" y="{y:}">{text:}mm</text>\n'.format(y=y, x=width-right_margin+3, text=mm)
+            mm+= rain_multiplier
+        return mm_scale
+    image+= mm_scale()
+    #for step in range(0, (max_rain + rain_multiplier)/rain_multiplier):
+    #    mm = step * rain_multiplier
+    #    y = rain2y(mm)
+    #    image+='    <text x="{x:}" y="{y:}">{text:}step</text>\n'.format(y=y, x=width-right_margin+3, text=mm)
     h=0
     prev_rain = 0
     for prediction in predictions.sequence:
         temp = prediction[1]['air_temperature']
         y=temp2y(temp)
-        if h > 0:
-            image+= '    <line x1="{prevx:}" y1="{prevy:}" x2="{x:}" y2="{y:}" style="stroke:{red:};stroke-width:4"/>\n'.format(prevx=h2x(h-1), prevy=temp2y(prev_temp), x=h2x(h), y=y, red=red)
-        icony = y - 35 if y > height/2 else y + 15
-        image+= '    <image width="30" height="30" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(x=h2x(h)-15, y=icony, ref='file:{}/weather/svg/{}.svg'.format(homedir, prediction[1]['symbol_code']))
-        image +='    {}\n'.format(windbarb(
-            prediction[1]['wind_speed'],
-            prediction[1]['wind_from_direction'],
-            h2x(h)-2,
-            height-bottom_margin+14,
-            scale=0.4
-        ))
         if prediction[1]['precipitation_amount_max'] > 0:
             image+= '    <path d="M {left:} {top:} L {right:} {top:} M {x:} {top:} L {x:} {bottom:} M {left:} {bottom:} L {right:} {bottom:} M {left:} {y:} L {right:} {y:}" style="stroke:blue;stroke-width:3"/>\n'.format(
                 left=h2x(h)-3,
@@ -116,6 +115,17 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
                     x=h2x(h),
                     y=rain2y(prediction[1]['precipitation_amount'])
                 )
+        if h > 0:
+            image+= '    <line x1="{prevx:}" y1="{prevy:}" x2="{x:}" y2="{y:}" style="stroke:{red:};stroke-width:4"/>\n'.format(prevx=h2x(h-1), prevy=temp2y(prev_temp), x=h2x(h), y=y, red=red)
+        icony = y - 35 if y > height/2 else y + 15
+        image+= '    <image width="30" height="30" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(x=h2x(h)-15, y=icony, ref='file:{}/weather/svg/{}.svg'.format(homedir, prediction[1]['symbol_code']))
+        image +='    {}\n'.format(windbarb(
+            prediction[1]['wind_speed'],
+            prediction[1]['wind_from_direction'],
+            h2x(h)-2,
+            height-bottom_margin+14,
+            scale=0.4
+        ))
         h+= 1
         prev_rain = prediction[1]['precipitation_amount']
         prev_temp = temp
