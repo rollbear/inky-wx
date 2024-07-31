@@ -51,6 +51,8 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str, colors
     graph_width = width - left_margin - right_margin
     graph_height = height - top_margin - bottom_margin
 
+    hour_width = graph_width/12
+
     image=''
     predictions = forecast.predictions(now)
     min_temp = 10000
@@ -121,7 +123,11 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str, colors
                 y=y,
                 color=color_temperature)
         icony = y - 35 if y > height/2 else y + 15
-        image+= '    <image width="30" height="30" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(x=h2x(h)-15, y=icony, ref='file:{}/weather/svg/{}.svg'.format(homedir, prediction[1]['symbol_code']))
+        image+= '    <image width="{size:}" height="{size:}" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(
+            x=h2x(h)-hour_width/2,
+            y=icony,
+            size=hour_width,
+            ref='file:{}/weather/svg/{}.svg'.format(homedir, prediction[1]['symbol_code']))
         image +='    {}\n'.format(windbarb(
             prediction[1]['wind_speed'],
             prediction[1]['wind_from_direction'],
@@ -133,7 +139,7 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str, colors
         h+= 1
         prev_rain = prediction[1]['precipitation_amount']
         prev_temp = temp
-    image+='    <image height="55" width="55" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(homedir, predictions.current[1]['symbol_code'])
+    image+='    <image height="60" width="60" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(homedir, predictions.current[1]['symbol_code'])
     image+='    <text x="70" y="55" fill="{color:}" font-size="55">{}°C</text>\n'.format(predictions.current[1]['air_temperature'], color=color_temperature)
     image+='    {}\n'.format(windbarb(
         predictions.current[1]['wind_speed'],
