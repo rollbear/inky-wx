@@ -86,18 +86,11 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str, colors
         y = temp2y(t)
         image+='    <line x1="{left:}" y1="{y:}" x2="{right:}" y2="{y:}" style="stroke:{color:};stroke-width:1"/>\n'.format(y=y, left=left_margin, right=width-right_margin, color=color_grid)
         image+='    <text x="2" y="{y:}" fill="{color:}">{text:}°</text>\n'.format(y=y, text=t, color=color_temperature)
-    def mm_scale():
-        mm_scale=''
-        for y in range(temp_range):
-            mm=round(y/rain_multiplier)
-            mm_scale+='    <text x="{x:}" y="{y:}" fill="{color:}">{text:}mm</text>\n'.format(y=rain2y(mm), x=width-right_margin+3, text=mm, color=color_precipitation)
-        return mm_scale
 
-    image+= mm_scale()
-    #for step in range(0, (max_rain + rain_multiplier)/rain_multiplier):
-    #    mm = step * rain_multiplier
-    #    y = rain2y(mm)
-    #    image+='    <text x="{x:}" y="{y:}">{text:}step</text>\n'.format(y=y, x=width-right_margin+3, text=mm)
+    for y in range(temp_range):
+        mm=round(y/rain_multiplier)
+        image+='    <text x="{x:}" y="{y:}" fill="{color:}">{text:}mm</text>\n'.format(y=rain2y(mm), x=width-right_margin+3, text=mm, color=color_precipitation)
+
     h=0
     prev_rain = 0
     for prediction in predictions.sequence:
