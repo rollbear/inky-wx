@@ -39,7 +39,7 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
     top_margin = height/4.5
     bottom_margin = height/15
     left_margin = width/15
-    right_margin = width/60
+    right_margin = width/12
 
     graph_width = width - left_margin - right_margin
     graph_height = height - top_margin - bottom_margin
@@ -48,6 +48,7 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
     predictions = forecast.predictions(now)
     min_temp = 10000
     max_temp = -10000
+    max_rain = 0
     time=None
     for prediction in predictions.sequence:
         if time == None:
@@ -55,6 +56,16 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
         temp = prediction[1]['air_temperature']
         min_temp = min(min_temp, math.floor(temp))
         max_temp = max(max_temp, math.ceil(temp))
+        max_rain = max(max_rain, math.ceil(prediction[1]['precipitation_amount_max']))
+    temp_range = max_temp - min_temp
+    temp2y = lambda temp: height - bottom_margin - graph_height/temp_range*(temp-min_temp)
+    rain_multipliers = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50]
+    rain_multiplier = 1
+    for multiplier in rain_multipliers:
+        if max_rain * multiplier >= temp_range:
+            break
+        rain_multiplier = multiplier
+    rain2y = lambda mm: height - bottom_margin - graph_height/temp_range*mm/rain_multiplier
     image+='  <svg height="{}" width="{}" xmlns="http://www.w3.org/2000/svg">\n'.format(height, width)
     symbol_color = 'black'
     background_color = 'white'
@@ -67,20 +78,22 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
         image+='    <text x="{x:}" y="{top:}" fill="{color:}">{h:}</text>\n'.format(x=x-10, top=top_margin-5, h=datetime.strftime(time + timedelta(hours=h), "%H"), color=symbol_color)
         if h > 0 and h < 11:
             image+='    <line x1="{x:}" y1="{top:}" x2="{x:}" y2="{bottom:}" style="stroke:blue;stroke-width:1"/>\n'.format(x=x, top=top_margin, bottom=height-bottom_margin)
-    temp_range = max_temp - min_temp
-    temp2y = lambda temp: height - bottom_margin - graph_height/temp_range*(temp-min_temp)
     for t in range(min_temp, max_temp):
         y = temp2y(t)
         image+='    <line x1="{left:}" y1="{y:}" x2="{right:}" y2="{y:}" style="stroke:blue;stroke-width:1"/>\n'.format(y=y, left=left_margin, right=width-right_margin)
         image+='    <text x="2" y="{y:}" fill="{color:}">{text:}°</text>\n'.format(y=y, text=t, color=symbol_color)
+    for mm in range(0, max_rain + rain_multiplier, rain_multiplier):
+        y = rain2y(mm)
+        image+='    <text x="{x:}" y="{y:}">{text:}mm</text>\n'.format(y=y,x=width-right_margin+3, text=mm)
     h=0
+    prev_rain = 0
     for prediction in predictions.sequence:
         temp = prediction[1]['air_temperature']
         y=temp2y(temp)
         if h > 0:
             image+= '    <line x1="{prevx:}" y1="{prevy:}" x2="{x:}" y2="{y:}" style="stroke:{red:};stroke-width:4"/>\n'.format(prevx=h2x(h-1), prevy=temp2y(prev_temp), x=h2x(h), y=y, red=red)
         icony = y - 35 if y > height/2 else y + 15
-        image+= '    <image width="30" height="30" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(x=h2x(h)-15, y=icony, ref='file:{}/weather/svg/{}.svg'.format(homedir, prediction[2]))
+        image+= '    <image width="30" height="30" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(x=h2x(h)-15, y=icony, ref='file:{}/weather/svg/{}.svg'.format(homedir, prediction[1]['symbol_code']))
         image +='    {}\n'.format(windbarb(
             prediction[1]['wind_speed'],
             prediction[1]['wind_from_direction'],
@@ -88,9 +101,25 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
             height-bottom_margin+14,
             scale=0.4
         ))
+        if prediction[1]['precipitation_amount_max'] > 0:
+            image+= '    <path d="M {left:} {top:} L {right:} {top:} M {x:} {top:} L {x:} {bottom:} M {left:} {bottom:} L {right:} {bottom:} M {left:} {y:} L {right:} {y:}" style="stroke:blue;stroke-width:3"/>\n'.format(
+                left=h2x(h)-3,
+                right=h2x(h)+3,
+                x=h2x(h),
+                top=rain2y(prediction[1]['precipitation_amount_max']),
+                bottom=rain2y(prediction[1]['precipitation_amount_min']),
+                y=rain2y(prediction[1]['precipitation_amount']))
+            if prev_rain > 0:
+                image+= '    <line x1="{prev_x:}" y1="{prev_y:}" x2="{x:}" y2="{y:}" style="strong:blue;stroke-width=3"/>\n'.format(
+                    prev_x=h2x(h-1),
+                    prev_y=rain2y(prev_rain),
+                    x=h2x(h),
+                    y=rain2y(prediction[1]['precipitation_amount'])
+                )
         h+= 1
+        prev_rain = prediction[1]['precipitation_amount']
         prev_temp = temp
-    image+='    <image height="55" width="55" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(homedir, predictions.current[2])
+    image+='    <image height="55" width="55" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(homedir, predictions.current[1]['symbol_code'])
     image+='    <text x="70" y="55" fill="{red:}" font-size="55">{}°C</text>\n'.format(predictions.current[1]['air_temperature'], red=red)
     image+='    {}\n'.format(windbarb(
         predictions.current[1]['wind_speed'],

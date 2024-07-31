@@ -35,9 +35,14 @@ class wx:
             data = obs['data']
             if not 'next_1_hours' in data:
                 continue
+            instant = data['instant']['details']
+            next_h = data['next_1_hours']
             self.prediction_data.append((parse_timestamp(obs['time']),
-                                         data['instant']['details'],
-                                         data['next_1_hours']['summary']['symbol_code']))
+                                         {
+                                             **instant,
+                                             **next_h['details'],
+                                             **next_h['summary']
+                                         }))
         self.prediction_data.sort(key = lambda obs: obs[0])
         expiry_time = headers['expires']
         self.expiry = parse_header_timestamp(expiry_time)
