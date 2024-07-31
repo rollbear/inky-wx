@@ -28,9 +28,9 @@ files. It must contain:
 
 ```JSON
 {
-  "lat": <numerical latitude in degrees North in decimal form>,
-  "long": <numerical longitude in degrees East in decimal form>,
-  "placename": <string with the name of the place at the coordinate>
+  "lat": 0.0,                 //<numerical latitude in degrees North in decimal form>
+  "long": 0.0,                //<numerical longitude in degrees East in decimal form>,
+  "placename": "Null Island"  //<string with the name of the place at the coordinate>
 }
 ```
 
@@ -43,3 +43,17 @@ Example:
 }
 ```
 
+The configuration file may in addition contain:
+```JSON
+{
+  "colors": {        // all colours are optional, values shown are the defaults
+    "background":    "white",
+    "grid":          "black",
+    "temperature":   "red",
+    "precipitation": "blue",
+    "wind":          "black",
+    "placename":     "black",
+    "hour":          "black"
+  }
+}
+```

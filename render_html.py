@@ -8,8 +8,7 @@ import math
 from cairosvg import svg2png
 import os
 
-def windbarb(mps, direction, pos_x, pos_y, scale):
-    color = 'black'
+def windbarb(mps, direction, pos_x, pos_y, scale, color):
     knots = round(mps*3600/1852)
     if knots <= 2:
         return '<circle r="{r:}" fill="none" style="stroke:{color:};stroke-width:2" transform="translate({x:} {y:})"/>'.format(x=pos_x,y=pos_y, r=32*scale, color=color)
@@ -32,7 +31,7 @@ def windbarb(mps, direction, pos_x, pos_y, scale):
         base_y+= delta_y
     return '<path d="{path:}" style="stroke:{color:};stroke-width:3" transform="translate({x:} {y:}) rotate({direction:}) scale({scale:})"/>'.format(path=path, x=pos_x, y=pos_y, direction=direction, scale=scale, color=color)
 
-def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
+def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str, colors):
     homedir=os.getcwd()
     width = resolution[0]
     height = resolution[1]
@@ -40,6 +39,14 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
     bottom_margin = height/15
     left_margin = width/15
     right_margin = width/12
+
+    color_background = colors.get('background','white')
+    color_grid = colors.get('grid', 'black')
+    color_temperature = colors.get('temperature', 'red')
+    color_precipitation = colors.get('precipitation', 'blue')
+    color_wind = colors.get('wind', 'black')
+    color_placename = colors.get('placename', 'black')
+    color_hour = colors.get('hour', 'black')
 
     graph_width = width - left_margin - right_margin
     graph_height = height - top_margin - bottom_margin
@@ -67,26 +74,23 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
         rain_multiplier = multiplier
     rain2y = lambda mm: temp2y(mm*rain_multiplier + min_temp) # height - bottom_margin - graph_height/temp_range*mm/rain_multiplier
     image+='  <svg height="{}" width="{}" xmlns="http://www.w3.org/2000/svg">\n'.format(height, width)
-    symbol_color = 'black'
-    background_color = 'white'
-    red = 'red'
-    image += '    <path d="M {left:} {top:} L {right:} {top:} L {right:} {bottom:} L {left:} {bottom:} Z" style="fill:{color:}"/>'.format(top=0, left=0, right=width, bottom=height, color=background_color)
-    image += '    <path d="M {left:} {top:} L {right:} {top:} L {right:} {bottom:} L {left:} {bottom:} Z" style="fill:none;stroke:blue;stroke-width:1"/>\n'.format(left=left_margin, top=top_margin, right=width-right_margin, bottom=height-bottom_margin)
+    image += '    <path d="M {left:} {top:} L {right:} {top:} L {right:} {bottom:} L {left:} {bottom:} Z" style="fill:{color:}"/>'.format(top=0, left=0, right=width, bottom=height, color=color_background)
+    image += '    <path d="M {left:} {top:} L {right:} {top:} L {right:} {bottom:} L {left:} {bottom:} Z" style="fill:none;stroke:{color:};stroke-width:1"/>\n'.format(left=left_margin, top=top_margin, right=width-right_margin, bottom=height-bottom_margin, color=color_grid)
     h2x = lambda h : h*graph_width/11+left_margin
     for h in range(12):
         x=h2x(h)
-        image+='    <text x="{x:}" y="{top:}" fill="{color:}">{h:}</text>\n'.format(x=x-10, top=top_margin-5, h=datetime.strftime(time + timedelta(hours=h), "%H"), color=symbol_color)
+        image+='    <text x="{x:}" y="{top:}" fill="{color:}">{h:}</text>\n'.format(x=x-10, top=top_margin-5, h=datetime.strftime(time + timedelta(hours=h), "%H"), color=color_hour)
         if h > 0 and h < 11:
-            image+='    <line x1="{x:}" y1="{top:}" x2="{x:}" y2="{bottom:}" style="stroke:blue;stroke-width:1"/>\n'.format(x=x, top=top_margin, bottom=height-bottom_margin)
+            image+='    <line x1="{x:}" y1="{top:}" x2="{x:}" y2="{bottom:}" style="stroke:{color:};stroke-width:1"/>\n'.format(x=x, top=top_margin, bottom=height-bottom_margin, color=color_grid)
     for t in range(min_temp, max_temp):
         y = temp2y(t)
-        image+='    <line x1="{left:}" y1="{y:}" x2="{right:}" y2="{y:}" style="stroke:blue;stroke-width:1"/>\n'.format(y=y, left=left_margin, right=width-right_margin)
-        image+='    <text x="2" y="{y:}" fill="{color:}">{text:}°</text>\n'.format(y=y, text=t, color=symbol_color)
+        image+='    <line x1="{left:}" y1="{y:}" x2="{right:}" y2="{y:}" style="stroke:{color:};stroke-width:1"/>\n'.format(y=y, left=left_margin, right=width-right_margin, color=color_grid)
+        image+='    <text x="2" y="{y:}" fill="{color:}">{text:}°</text>\n'.format(y=y, text=t, color=color_temperature)
     def mm_scale():
         mm_scale=''
         for y in range(temp_range):
             mm=round(y/rain_multiplier)
-            mm_scale+='    <text x="{x:}" y="{y:}">{text:}mm</text>\n'.format(y=rain2y(mm), x=width-right_margin+3, text=mm)
+            mm_scale+='    <text x="{x:}" y="{y:}" fill="{color:}">{text:}mm</text>\n'.format(y=rain2y(mm), x=width-right_margin+3, text=mm, color=color_precipitation)
         return mm_scale
 
     image+= mm_scale()
@@ -100,22 +104,29 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
         temp = prediction[1]['air_temperature']
         y=temp2y(temp)
         if prediction[1]['precipitation_amount_max'] > 0:
-            image+= '    <path d="M {left:} {top:} L {right:} {top:} M {x:} {top:} L {x:} {bottom:} M {left:} {bottom:} L {right:} {bottom:} M {left:} {y:} L {right:} {y:}" style="stroke:blue;stroke-width:3"/>\n'.format(
+            image+= '    <path d="M {left:} {top:} L {right:} {top:} M {x:} {top:} L {x:} {bottom:} M {left:} {bottom:} L {right:} {bottom:} M {left:} {y:} L {right:} {y:}" style="stroke:{color:};stroke-width:3"/>\n'.format(
                 left=h2x(h)-3,
                 right=h2x(h)+3,
                 x=h2x(h),
                 top=rain2y(prediction[1]['precipitation_amount_max']),
                 bottom=rain2y(prediction[1]['precipitation_amount_min']),
-                y=rain2y(prediction[1]['precipitation_amount']))
+                y=rain2y(prediction[1]['precipitation_amount']),
+                color=color_precipitation)
             if prev_rain > 0:
-                image+= '    <line x1="{prev_x:}" y1="{prev_y:}" x2="{x:}" y2="{y:}" style="strong:blue;stroke-width=3"/>\n'.format(
+                image+= '    <line x1="{prev_x:}" y1="{prev_y:}" x2="{x:}" y2="{y:}" style="stroke:{color:};stroke-width=3"/>\n'.format(
                     prev_x=h2x(h-1),
                     prev_y=rain2y(prev_rain),
                     x=h2x(h),
-                    y=rain2y(prediction[1]['precipitation_amount'])
+                    y=rain2y(prediction[1]['precipitation_amount']),
+                    color=color_precipitation
                 )
         if h > 0:
-            image+= '    <line x1="{prevx:}" y1="{prevy:}" x2="{x:}" y2="{y:}" style="stroke:{red:};stroke-width:4"/>\n'.format(prevx=h2x(h-1), prevy=temp2y(prev_temp), x=h2x(h), y=y, red=red)
+            image+= '    <line x1="{prevx:}" y1="{prevy:}" x2="{x:}" y2="{y:}" style="stroke:{color:};stroke-width:4"/>\n'.format(
+                prevx=h2x(h-1),
+                prevy=temp2y(prev_temp),
+                x=h2x(h),
+                y=y,
+                color=color_temperature)
         icony = y - 35 if y > height/2 else y + 15
         image+= '    <image width="30" height="30" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(x=h2x(h)-15, y=icony, ref='file:{}/weather/svg/{}.svg'.format(homedir, prediction[1]['symbol_code']))
         image +='    {}\n'.format(windbarb(
@@ -123,18 +134,19 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str):
             prediction[1]['wind_from_direction'],
             h2x(h)-2,
             height-bottom_margin+14,
-            scale=0.4
+            scale=0.4,
+            color=color_wind
         ))
         h+= 1
         prev_rain = prediction[1]['precipitation_amount']
         prev_temp = temp
     image+='    <image height="55" width="55" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(homedir, predictions.current[1]['symbol_code'])
-    image+='    <text x="70" y="55" fill="{red:}" font-size="55">{}°C</text>\n'.format(predictions.current[1]['air_temperature'], red=red)
+    image+='    <text x="70" y="55" fill="{color:}" font-size="55">{}°C</text>\n'.format(predictions.current[1]['air_temperature'], color=color_temperature)
     image+='    {}\n'.format(windbarb(
         predictions.current[1]['wind_speed'],
         predictions.current[1]['wind_from_direction'],
-        300, 35, 0.8))
-    image+= '    <text x="350" y="55" fill="{color:}" font-size="40">{place:}</text>\n'.format(color=symbol_color, place=place)
+        300, 35, 0.8, color=color_wind))
+    image+= '    <text x="350" y="55" fill="{color:}" font-size="40">{place:}</text>\n'.format(color=color_placename, place=place)
     image+='  </svg>\n'
     return image
 

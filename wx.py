@@ -34,6 +34,7 @@ def run():
     long = config['long']
     name = config['placename']
 
+    colors = config.get('colors', {})
     deadline=datetime.now(tz=pytz.UTC)
     http = urllib3.PoolManager()
     display = auto()
@@ -47,7 +48,7 @@ def run():
                                         headers={"User-Agent": USER_AGENT})
                 forecast = wx(response.json(), response.headers)
                 deadline = forecast.next_update() + timedelta(minutes=1)
-            svg_image = render_hmtl(forecast, now, display.resolution, name)
+            svg_image = render_hmtl(forecast, now, display.resolution, name, colors)
             png_image = Image.open(io.BytesIO(svg2png(svg_image, unsafe=True,output_width=600, output_height=448)))
             resized_image = png_image.resize(display.resolution)
             display.set_image(resized_image)
