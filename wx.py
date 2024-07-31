@@ -38,7 +38,6 @@ def run():
     deadline=datetime.now(tz=pytz.UTC)
     http = urllib3.PoolManager()
     display = auto()
-    print('display resolution={}'.format(display.resolution))
     while True:
         #try:
             now=datetime.now(tz=pytz.UTC)
@@ -53,7 +52,8 @@ def run():
             resized_image = png_image.resize(display.resolution)
             display.set_image(resized_image)
             display.show()
-            waittime = min(deadline - now, timedelta(hours=1)) if deadline > now else timedelta(seconds=10)
+            next_hour = now.replace(hour=now.hour+1, minute=0, second=0)
+            waittime = min(deadline - now, next_hour - now) if deadline > now else timedelta(seconds=10)
             seconds = waittime.total_seconds()
             sleep(seconds)
         #except:
