@@ -57,3 +57,5 @@ The configuration file may in addition contain:
   }
 }
 ```
+
+Sending a `SIGHUP` to the process causes a re-read of the configuration

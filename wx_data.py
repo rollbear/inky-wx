@@ -46,6 +46,7 @@ class wx:
         self.prediction_data.sort(key = lambda obs: obs[0])
         expiry_time = headers['expires']
         self.expiry = parse_header_timestamp(expiry_time)
+        self.current = None
 
     def next_update(self):
         return self.expiry
@@ -54,10 +55,9 @@ class wx:
         return self.expiry > now
 
     def predictions(self, now, max = 12):
-        current = None
         while len(self.prediction_data) > 0 and self.prediction_data[0][0] < now:
-            current = self.prediction_data.pop(0)
-        return WeatherData(current, PredictionSet(self.prediction_data))
+            self.current = self.prediction_data.pop(0)
+        return WeatherData(self.current, PredictionSet(self.prediction_data))
 
 class Test_wx(unittest.TestCase):
     def test_expiry(self):
