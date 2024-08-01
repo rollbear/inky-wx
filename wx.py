@@ -1,5 +1,7 @@
 #!/usr/bin/env python
+import logging
 import signal
+import syslog
 from time import sleep
 import pytz
 from wx_data import wx
@@ -14,6 +16,18 @@ import io
 import json
 
 USER_AGENT='rollbear inky wx https://github.com/rollbear/inky-wx'
+
+def str2loglevel(name: str):
+    if name == 'WARNING':
+        return syslog.LOG_WARNING
+    if name == 'ERROR':
+        return syslog.LOG_ERR
+    if name == 'CRITICAL':
+        return syslog.LOG_CRIT
+    if name == 'INFO':
+        return syslog.LOG_INFO
+    if name == 'DEBUG':
+        return syslog.LOG_DEBUG
 
 
 class wakeup(BaseException):
@@ -42,15 +56,21 @@ def run():
 
     lat = 0
     long = 0
-    name = ''
+
+    loglevel = syslog.LOG_INFO
+    syslog.openlog()
+    syslog.setlogmask(syslog.LOG_MASK(loglevel))
+
+    syslog.syslog(syslog.LOG_INFO, "Starting")
 
     deadline=datetime.now(tz=pytz.UTC)
     http = urllib3.PoolManager()
     display = auto()
     while True:
-        #try:
+        try:
             new_location = False
             if pending_config:
+                syslog.syslog(syslog.LOG_INFO, "Reading configuration")
                 config = read_config(args.config)
 
                 old_lat = lat
@@ -60,6 +80,11 @@ def run():
                 long = config['long']
                 name = config['placename']
 
+                old_loglevel = loglevel
+                loglevel = str2loglevel(config.get('loglevel', 'INFO'))
+                if old_loglevel != loglevel:
+                    syslog.setlogmask(syslog.LOG_MASK(loglevel))
+
                 new_location = old_lat != old_lat or long != old_long
 
                 colors = config.get('colors', {})
@@ -67,11 +92,17 @@ def run():
 
             now=datetime.now(tz=pytz.UTC)
             if now >= deadline or new_location:
-                response = http.request(method='GET',
-                                        url='https://api.met.no/weatherapi/locationforecast/2.0/complete?lat={lat:}&lon={lon:}'.format(lat=lat,lon=long),
-                                        headers={"User-Agent": USER_AGENT})
-                forecast = wx(response.json(), response.headers)
-                deadline = forecast.next_update() + timedelta(minutes=1)
+                try:
+                    syslog.syslog(syslog.LOG_INFO, "Get data for location lat={lat:}, long={long:}".format(lat=lat,long=long))
+                    response = http.request(method='GET',
+                                            url='https://api.met.no/weatherapi/locationforecast/2.0/complete?lat={lat:}&lon={lon:}'.format(lat=lat,lon=long),
+                                            headers={"User-Agent": USER_AGENT})
+                except Exception as e:
+                    syslog.syslog(syslog.LOG_ERROR, "Failed to get data, err={}", e)
+                else:
+                    forecast = wx(response.json(), response.headers)
+                    deadline = forecast.next_update() + timedelta(minutes=1)
+            syslog.syslog(syslog.LOG_INFO, "Render new image")
             svg_image = render_hmtl(forecast, now, display.resolution, name, colors)
             png_image = Image.open(io.BytesIO(svg2png(svg_image, unsafe=True,output_width=600, output_height=448)))
             resized_image = png_image.resize(display.resolution)
@@ -85,8 +116,9 @@ def run():
             except wakeup:
                 pending_config = True
                 continue
-        #except:
-        #    sleep(20)
+        except Exception as e:
+            syslog.syslog("Caught exception {}".format(e))
+            sleep(20)
     
 
 if __name__ == '__main__':
