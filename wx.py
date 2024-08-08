@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import logging
+import traceback
 import signal
 import syslog
 from time import sleep
@@ -117,7 +117,9 @@ def run():
                 pending_config = True
                 continue
         except Exception as e:
-            syslog.syslog("Caught exception {}".format(e))
+            syslog.syslog(syslog.LOG_ERR, "Caught exception {}".format(e))
+            for line in traceback.format_exception(e):
+                syslog.syslog(syslog.LOG_ERR, line)
             sleep(20)
     
 
