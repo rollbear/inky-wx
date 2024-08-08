@@ -108,7 +108,7 @@ def run():
             resized_image = png_image.resize(display.resolution)
             display.set_image(resized_image)
             display.show()
-            next_hour = now.replace(hour=now.hour+1, minute=0, second=0)
+            next_hour = now.replace(minute=0, second=0) + timedelta(hours=1)
             waittime = min(deadline - now, next_hour - now) if deadline > now else timedelta(seconds=10)
             seconds = waittime.total_seconds()
             try:
