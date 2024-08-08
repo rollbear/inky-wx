@@ -122,7 +122,7 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str, colors
                 x=h2x(h),
                 y=y,
                 color=color_temperature)
-        icony = y - 35 if y > height/2 else y + 15
+        icony = y - 1.5*hour_width if y > height/2 else y + hour_width
         image+= '    <image width="{size:}" height="{size:}" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(
             x=h2x(h)-hour_width/2,
             y=icony,
