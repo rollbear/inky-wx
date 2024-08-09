@@ -5,7 +5,7 @@ import syslog
 from time import sleep
 import pytz
 from wx_data import wx
-from render_svg import render_svg
+import render_svg
 from datetime import datetime, timedelta
 import urllib3
 from cairosvg import svg2png
@@ -66,10 +66,11 @@ def run():
     deadline=datetime.now(tz=pytz.UTC)
     http = urllib3.PoolManager()
     display = auto()
+    renderer = None
     while True:
         try:
             new_location = False
-            if pending_config:
+            if renderer == None:
                 syslog.syslog(syslog.LOG_INFO, "Reading configuration")
                 config = read_config(args.config)
 
@@ -87,8 +88,7 @@ def run():
 
                 new_location = old_lat != old_lat or long != old_long
 
-                colors = config.get('colors', {})
-                pending_config = False
+                renderer = render_svg.renderer(display.resolution, name, config.get('colors', {}))
 
             now=datetime.now(tz=pytz.UTC)
             if now >= deadline or new_location:
@@ -103,7 +103,7 @@ def run():
                     forecast = wx(response.json(), response.headers)
                     deadline = forecast.next_update() + timedelta(minutes=1)
             syslog.syslog(syslog.LOG_INFO, "Render new image")
-            svg_image = render_svg(forecast, now, display.resolution, name, colors)
+            svg_image = renderer.render_svg(forecast, now)
             png_image = Image.open(io.BytesIO(svg2png(svg_image, unsafe=True,output_width=600, output_height=448)))
             resized_image = png_image.resize(display.resolution)
             display.set_image(resized_image)
@@ -111,11 +111,11 @@ def run():
             next_hour = now.replace(minute=0, second=0) + timedelta(hours=1)
             waittime = min(deadline - now, next_hour - now) if deadline > now else timedelta(seconds=10)
             seconds = waittime.total_seconds()
-            try:
-                sleep(seconds)
-            except wakeup:
-                pending_config = True
-                continue
+            sleep(seconds)
+
+        except wakeup:
+            renderer = None
+
         except Exception as e:
             syslog.syslog(syslog.LOG_ERR, "Caught exception {}".format(e))
             for line in traceback.format_exception(e):

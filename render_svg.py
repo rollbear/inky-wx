@@ -31,139 +31,245 @@ def windbarb(mps, direction, pos_x, pos_y, scale, color):
         base_y+= delta_y
     return '<path d="{path:}" style="stroke:{color:};stroke-width:3" transform="translate({x:} {y:}) rotate({direction:}) scale({scale:})"/>'.format(path=path, x=pos_x, y=pos_y, direction=direction, scale=scale, color=color)
 
-def render_svg(forecast: wx_data, now: datetime, resolution, place: str, colors):
-    homedir=os.getcwd()
-    width = resolution[0]
-    height = resolution[1]
-    top_margin = height/4.5
-    bottom_margin = height/15
-    left_margin = width/15
-    right_margin = width/12
+class renderer:
+    def __init__(self, resolution, place, colors):
+        self.homedir=os.getcwd()
+        self.width = resolution[0]
+        self.height = resolution[1]
+        self.top_margin = self.height/4.5
+        self.bottom_margin = self.height/15
+        self.left_margin = self.width/15
+        self.right_margin = self.width/12
 
-    color_background = colors.get('background','white')
-    color_grid = colors.get('grid', 'black')
-    color_temperature = colors.get('temperature', 'red')
-    color_precipitation = colors.get('precipitation', 'blue')
-    color_wind = colors.get('wind', 'black')
-    color_placename = colors.get('placename', 'black')
-    color_hour = colors.get('hour', 'black')
+        self.color_background = colors.get('background','white')
+        self.color_grid = colors.get('grid', 'black')
+        self.color_temperature = colors.get('temperature', 'red')
+        self.color_precipitation = colors.get('precipitation', 'blue')
+        self.color_wind = colors.get('wind', 'black')
+        self.color_placename = colors.get('placename', 'black')
+        self.color_hour = colors.get('hour', 'black')
 
-    graph_width = width - left_margin - right_margin
-    graph_height = height - top_margin - bottom_margin
+        self.graph_width = self.width - self.left_margin - self.right_margin
+        self.graph_height = self.height - self.top_margin - self.bottom_margin
 
-    hour_width = graph_width/12
+        self.hour_width = self.graph_width/12
 
-    image=''
-    predictions = forecast.predictions(now)
-    min_temp = 10000
-    max_temp = -10000
-    max_rain = 0
-    time=None
-    for prediction in predictions.sequence:
-        if time == None:
+        self.place = place
+
+    def _get_limits(self, predictions):
+
+        min_temp = 10000
+        max_temp = -10000
+        max_rain = 0
+        time=None
+        for prediction in predictions.sequence:
+            if time == None:
+                time = prediction[0].astimezone()
+            temp = prediction[1]['air_temperature']
+            min_temp = min(min_temp, math.floor(temp))
+            max_temp = max(max_temp, math.ceil(temp))
+            max_rain = max(max_rain, math.ceil(prediction[1]['precipitation_amount_max']))
+        temp_range = max_temp - min_temp
+        rain_multipliers = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50]
+        rain_multiplier = 1
+        for multiplier in rain_multipliers:
+            if max_rain * multiplier > temp_range:
+                break
+            rain_multiplier = multiplier
+
+        self.temp_range = temp_range
+        self.rain_multiplier = rain_multiplier
+        self.min_temp = min_temp
+        self.max_temp = max_temp
+        self.predictions = predictions
+
+    def h2x(self, h: float):
+        return h*self.graph_width/11+self.left_margin
+
+    def temp2y(self, temp: float):
+        return self.height - self.bottom_margin - self.graph_height/self.temp_range * (temp - self.min_temp)
+
+    def rain2y(self, mm: float):
+        return self.temp2y(mm * self.rain_multiplier + self.min_temp)
+
+    def _render_background(self):
+        return '    <path d="M {left:} {top:} L {right:} {top:} L {right:} {bottom:} L {left:} {bottom:} Z" style="fill:{color:}"/>'.format(
+            top=0,
+            left=0,
+            right=self.width,
+            bottom=self.height,
+            color=self.color_background)
+
+    def _render_grid(self, time: datetime):
+        grid = ''
+        grid += '    <path d="M {left:} {top:} L {right:} {top:} L {right:} {bottom:} L {left:} {bottom:} Z" style="fill:none;stroke:{color:};stroke-width:1"/>\n'.format(
+            left=self.left_margin,
+            top=self.top_margin,
+            right=self.width - self.right_margin,
+            bottom=self.height - self.bottom_margin,
+            color=self.color_grid)
+        for prediction in self.predictions.sequence:
             time = prediction[0].astimezone()
-        temp = prediction[1]['air_temperature']
-        min_temp = min(min_temp, math.floor(temp))
-        max_temp = max(max_temp, math.ceil(temp))
-        max_rain = max(max_rain, math.ceil(prediction[1]['precipitation_amount_max']))
-    temp_range = max_temp - min_temp
-    temp2y = lambda temp: height - bottom_margin - graph_height/temp_range*(temp-min_temp)
-    rain_multipliers = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50]
-    rain_multiplier = 1
-    for multiplier in rain_multipliers:
-        if max_rain * multiplier > temp_range:
             break
-        rain_multiplier = multiplier
-    rain2y = lambda mm: temp2y(mm*rain_multiplier + min_temp) # height - bottom_margin - graph_height/temp_range*mm/rain_multiplier
-    image+='  <svg height="{}" width="{}" xmlns="http://www.w3.org/2000/svg">\n'.format(height, width)
-    image += '    <path d="M {left:} {top:} L {right:} {top:} L {right:} {bottom:} L {left:} {bottom:} Z" style="fill:{color:}"/>'.format(top=0, left=0, right=width, bottom=height, color=color_background)
-    image += '    <path d="M {left:} {top:} L {right:} {top:} L {right:} {bottom:} L {left:} {bottom:} Z" style="fill:none;stroke:{color:};stroke-width:1"/>\n'.format(left=left_margin, top=top_margin, right=width-right_margin, bottom=height-bottom_margin, color=color_grid)
-    h2x = lambda h : h*graph_width/11+left_margin
-    for h in range(12):
-        x=h2x(h)
-        image+='    <text x="{x:}" y="{top:}" fill="{color:}">{h:}</text>\n'.format(x=x-10, top=top_margin-5, h=datetime.strftime(time + timedelta(hours=h), "%H"), color=color_hour)
-        if h > 0 and h < 11:
-            image+='    <line x1="{x:}" y1="{top:}" x2="{x:}" y2="{bottom:}" style="stroke:{color:};stroke-width:1"/>\n'.format(x=x, top=top_margin, bottom=height-bottom_margin, color=color_grid)
-    for t in range(min_temp, max_temp):
-        y = temp2y(t)
-        image+='    <line x1="{left:}" y1="{y:}" x2="{right:}" y2="{y:}" style="stroke:{color:};stroke-width:1"/>\n'.format(y=y, left=left_margin, right=width-right_margin, color=color_grid)
-        image+='    <text x="2" y="{y:}" fill="{color:}">{text:}°</text>\n'.format(y=y, text=t, color=color_temperature)
+        for h in range(12):
+            x=self.h2x(h)
+            grid+='    <text x="{x:}" y="{top:}" fill="{color:}">{h:}</text>\n'.format(
+                x=x-10,
+                top=self.top_margin-5,
+                h=datetime.strftime(time + timedelta(hours=h), "%H"),
+                color=self.color_hour)
 
-    for y in range(temp_range):
-        mm=round(y/rain_multiplier)
-        image+='    <text x="{x:}" y="{y:}" fill="{color:}">{text:}mm</text>\n'.format(y=rain2y(mm), x=width-right_margin+3, text=mm, color=color_precipitation)
+            if h > 0 and h < 11:
+                grid+='    <line x1="{x:}" y1="{top:}" x2="{x:}" y2="{bottom:}" style="stroke:{color:};stroke-width:1"/>\n'.format(
+                    x=x,
+                    top=self.top_margin,
+                    bottom=self.height-self.bottom_margin,
+                    color=self.color_grid)
 
-    h=0
-    prev_precipitation_expected = 0
-    prev_precipitation_min = 0
-    for prediction in predictions.sequence:
-        temp = prediction[1]['air_temperature']
-        y=temp2y(temp)
-        precipitation_min = prediction[1]['precipitation_amount_min']
-        precipitation_expected = prediction[1]['precipitation_amount']
-        precipitation_max = prediction[1]['precipitation_amount_max']
-        if precipitation_max > 0:
-            image+= '    <path d="M {left:} {top:} L {right:} {top:} M {x:} {top:} L {x:} {bottom:} M {left:} {bottom:} L {right:} {bottom:} M {left:} {y:} L {right:} {y:}" style="stroke:{color:};stroke-width:3"/>\n'.format(
-                left=h2x(h)-3,
-                right=h2x(h)+3,
-                x=h2x(h),
-                top=rain2y(precipitation_max),
-                bottom=rain2y(precipitation_min),
-                y=rain2y(precipitation_expected),
-                color=color_precipitation)
-            if prev_precipitation_expected > 0 or precipitation_expected > 0:
-                image+= '    <path d="M {prev_x:} {prev_ymin:} L {prev_x:} {prev_y:} L {x:} {y:} L {x:} {ymin} Z" style="stroke:{color:};stroke-width:1;fill:{color:};fill-opacity:0.5"/>\n'.format(
-                    prev_x=h2x(h-1),
-                    prev_ymin=rain2y(prev_precipitation_min),
-                    prev_y=rain2y(prev_precipitation_expected),
-                    x=h2x(h),
-                    y=rain2y(precipitation_expected),
-                    ymin=rain2y(precipitation_min),
-                    color=color_precipitation
-                )
-            if prev_precipitation_min > 0 or precipitation_min > 0:
-                image+= '    <path d="M {prev_x:} {ymin:} L {prev_x:} {prev_y:} L {x:} {y:} L {x:} {ymin:} Z" style="stroke:{color:};stroke-width:1;fill:{color:}"/>\n'.format(
-                    ymin=rain2y(0),
-                    prev_x=h2x(h-1),
-                    prev_y=rain2y(prev_precipitation_min),
-                    x=h2x(h),
-                    y=rain2y(precipitation_min),
-                    color=color_precipitation
-                )
-        if h > 0:
-            image+= '    <line x1="{prevx:}" y1="{prevy:}" x2="{x:}" y2="{y:}" style="stroke:{color:};stroke-width:4"/>\n'.format(
-                prevx=h2x(h-1),
-                prevy=temp2y(prev_temp),
-                x=h2x(h),
+        for t in range(self.min_temp, self.max_temp):
+            y = self.temp2y(t)
+            grid+='    <line x1="{left:}" y1="{y:}" x2="{right:}" y2="{y:}" style="stroke:{color:};stroke-width:1"/>\n'.format(
                 y=y,
-                color=color_temperature)
-        icony = y - 1.5*hour_width if y > height/2 else y + hour_width
-        image+= '    <image width="{size:}" height="{size:}" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(
-            x=h2x(h)-hour_width/2,
-            y=icony,
-            size=hour_width,
-            ref='file:{}/weather/svg/{}.svg'.format(homedir, prediction[1]['symbol_code']))
-        image +='    {}\n'.format(windbarb(
-            prediction[1]['wind_speed_percentile_90'],
-            prediction[1]['wind_from_direction'],
-            h2x(h)-2,
-            height-bottom_margin+14,
-            scale=0.4,
-            color=color_wind
-        ))
-        h+= 1
-        prev_precipitation_expected = precipitation_expected
-        prev_precipitation_min = precipitation_min
-        prev_temp = temp
-    image+='    <image height="60" width="60" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(homedir, predictions.current[1]['symbol_code'])
-    image+='    <text x="70" y="55" fill="{color:}" font-size="55">{}°C</text>\n'.format(predictions.current[1]['air_temperature'], color=color_temperature)
-    image+='    {}\n'.format(windbarb(
-        predictions.current[1]['wind_speed_percentile_90'],
-        predictions.current[1]['wind_from_direction'],
-        300, 35, 0.8, color=color_wind))
-    image+= '    <text x="350" y="55" fill="{color:}" font-size="40">{place:}</text>\n'.format(color=color_placename, place=place)
-    image+='  </svg>\n'
-    return image
+                left=self.left_margin,
+                right=self.width-self.right_margin,
+                color=self.color_grid)
+
+            grid+='    <text x="2" y="{y:}" fill="{color:}">{text:}°</text>\n'.format(
+                y=y,
+                text=t,
+                color=self.color_temperature)
+
+        for y in range(self.temp_range):
+            mm=round(y/self.rain_multiplier)
+            grid+='    <text x="{x:}" y="{y:}" fill="{color:}">{text:}mm</text>\n'.format(
+                y=self.rain2y(mm),
+                x=self.width - self.right_margin + 3,
+                text=mm,
+                color=self.color_precipitation)
+
+        return grid
+
+    def render_precipitation(self):
+        graph=''
+        h=0
+        prev_precipitation_expected = 0
+        prev_precipitation_min = 0
+        for prediction in self.predictions.sequence:
+            temp = prediction[1]['air_temperature']
+            y=self.temp2y(temp)
+            precipitation_min = prediction[1]['precipitation_amount_min']
+            precipitation_expected = prediction[1]['precipitation_amount']
+            precipitation_max = prediction[1]['precipitation_amount_max']
+            if precipitation_max > 0:
+                graph+= '    <path d="M {left:} {top:} L {right:} {top:} M {x:} {top:} L {x:} {bottom:} M {left:} {bottom:} L {right:} {bottom:} M {left:} {y:} L {right:} {y:}" style="stroke:{color:};stroke-width:3"/>\n'.format(
+                    left=self.h2x(h) - 3,
+                    right=self.h2x(h) + 3,
+                    x=self.h2x(h),
+                    top=self.rain2y(precipitation_max),
+                    bottom=self.rain2y(precipitation_min),
+                    y=self.rain2y(precipitation_expected),
+                    color=self.color_precipitation)
+                if prev_precipitation_expected > 0 or precipitation_expected > 0:
+                    graph+= '    <path d="M {prev_x:} {prev_ymin:} L {prev_x:} {prev_y:} L {x:} {y:} L {x:} {ymin} Z" style="stroke:{color:};stroke-width:1;fill:{color:};fill-opacity:0.5"/>\n'.format(
+                        prev_x=self.h2x(h - 1),
+                        prev_ymin=self.rain2y(prev_precipitation_min),
+                        prev_y=self.rain2y(prev_precipitation_expected),
+                        x=self.h2x(h),
+                        y=self.rain2y(precipitation_expected),
+                        ymin=self.rain2y(precipitation_min),
+                        color=self.color_precipitation
+                    )
+                if prev_precipitation_min > 0 or precipitation_min > 0:
+                    graph+= '    <path d="M {prev_x:} {ymin:} L {prev_x:} {prev_y:} L {x:} {y:} L {x:} {ymin:} Z" style="stroke:{color:};stroke-width:1;fill:{color:}"/>\n'.format(
+                        ymin=self.rain2y(0),
+                        prev_x=self.h2x(h-1),
+                        prev_y=self.rain2y(prev_precipitation_min),
+                        x=self.h2x(h),
+                        y=self.rain2y(precipitation_min),
+                        color=self.color_precipitation
+                    )
+            prev_precipitation_min = precipitation_min
+            prev_precipitation_expected = precipitation_expected
+            h += 1
+        return graph
+
+    def render_temperature(self):
+        graph = ''
+        h=0
+        for prediction in self.predictions.sequence:
+            temp = prediction[1]['air_temperature']
+            y = self.temp2y(temp)
+            if h > 0:
+                graph+= '    <line x1="{prevx:}" y1="{prevy:}" x2="{x:}" y2="{y:}" style="stroke:{color:};stroke-width:4"/>\n'.format(
+                    prevx=self.h2x(h-1),
+                    prevy=prev_y,
+                    x=self.h2x(h),
+                    y=y,
+                    color=self.color_temperature)
+            prev_y = y
+            h += 1
+
+        return graph
+
+    def render_sky_icons(self):
+        icons = ''
+        h=0
+        for prediction in self.predictions.sequence:
+            y = self.temp2y(prediction[1]['air_temperature'])
+            h += 1
+            icony = y - 1.5*self.hour_width if y > self.height/2 else y + self.hour_width
+            icons+= '    <image width="{size:}" height="{size:}" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(
+                x=self.h2x(h)-self.hour_width/2,
+                y=icony,
+                size=self.hour_width,
+                ref='file:{}/weather/svg/{}.svg'.format(self.homedir, prediction[1]['symbol_code']))
+        return icons
+
+    def render_wind(self):
+        icons = ''
+        h=0
+        for prediction in self.predictions.sequence:
+            icons +='    {}\n'.format(windbarb(
+                prediction[1]['wind_speed_percentile_90'],
+                prediction[1]['wind_from_direction'],
+                self.h2x(h) - 2,
+                self.height - self.bottom_margin + 14,
+                scale=0.4,
+                color=self.color_wind
+            ))
+            h+= 1
+        return icons
+
+    def render_header(self):
+        header = ''
+        header+='    <image height="60" width="60" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(
+            self.homedir,
+            self.predictions.current[1]['symbol_code'])
+        header+='    <text x="70" y="55" fill="{color:}" font-size="55">{}°C</text>\n'.format(
+            self.predictions.current[1]['air_temperature'],
+            color=self.color_temperature)
+        header+='    {}\n'.format(windbarb(
+            self.predictions.current[1]['wind_speed_percentile_90'],
+            self.predictions.current[1]['wind_from_direction'],
+            300, 35, 0.8, color=self.color_wind))
+        header+= '    <text x="350" y="55" fill="{color:}" font-size="40">{place:}</text>\n'.format(
+            color=self.color_placename,
+            place=self.place)
+        return header
+
+    def render_svg(self, forecast: wx_data, now: datetime):
+        self._get_limits(forecast.predictions(now))
+        image ='  <svg height="{}" width="{}" xmlns="http://www.w3.org/2000/svg">\n'.format(self.height, self.width)
+        image += self._render_background()
+        image += self.render_precipitation()
+        image += self.render_temperature()
+        image += self.render_sky_icons()
+        image += self.render_wind()
+        image += self.render_header()
+        image += self._render_grid(now)
+        image+='  </svg>\n'
+        return image
+
 
 if __name__ == '__main__':
     img='<svg height="448" width="600" xmlns="http://www.w3.org/2000/svg">\n'
@@ -176,10 +282,3 @@ if __name__ == '__main__':
     f = open('barbs.svg','w')
     f.write(img)
     f.close()
-
-    #obs_data = json.load(open('/home/bjorn/compact_stugan.json')) #solna_yr.json'))
-    #headers = { 'expires': 'Tue, 25 Jun 2024 05:22:48 GMT' }
-    #forecast = wx_data.wx(obs_data, headers)
-    #now = datetime.now(pytz.UTC)#fromisoformat('2024-06-25T09:00:00Z')
-    #image = render_hmtl(forecast, now, "Bredsättra")
-    #svg2png(image, unsafe=True, output_width=600, output_height=448, write_to='/tmp/stugan.png')
