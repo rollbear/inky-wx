@@ -11,6 +11,9 @@ def parse_header_timestamp(timestamp):
 def parse_timestamp(timestamp):
     return datetime.fromisoformat(timestamp)
 
+Prediction = namedtuple('Prediction', ['timestamp', 'data'])
+
+
 class PredictionSet:
     def __init__(self, data, max = 12):
         self.data = data
@@ -37,12 +40,14 @@ class wx:
                 continue
             instant = data['instant']['details']
             next_h = data['next_1_hours']
-            self.prediction_data.append((parse_timestamp(obs['time']),
-                                         {
-                                             **instant,
-                                             **next_h['details'],
-                                             **next_h['summary']
-                                         }))
+            self.prediction_data.append(Prediction(
+                parse_timestamp(obs['time']),
+                {
+                **instant,
+                **next_h['details'],
+                **next_h['summary']
+                })
+            )
         self.prediction_data.sort(key = lambda obs: obs[0])
         expiry_time = headers['expires']
         self.expiry = parse_header_timestamp(expiry_time)
@@ -55,7 +60,7 @@ class wx:
         return self.expiry > now
 
     def predictions(self, now, max = 12):
-        while len(self.prediction_data) > 0 and self.prediction_data[0][0] < now:
+        while len(self.prediction_data) > 0 and self.prediction_data[0].timestamp < now:
             self.current = self.prediction_data.pop(0)
         return WeatherData(self.current, PredictionSet(self.prediction_data))
 

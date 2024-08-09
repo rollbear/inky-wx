@@ -109,7 +109,7 @@ class renderer:
             bottom=self.height - self.bottom_margin,
             color=self.color_grid)
         for prediction in self.predictions.sequence:
-            time = prediction[0].astimezone()
+            time = prediction.timestamp.astimezone()
             break
         for h in range(12):
             x=self.h2x(h)
@@ -155,11 +155,11 @@ class renderer:
         prev_precipitation_expected = 0
         prev_precipitation_min = 0
         for prediction in self.predictions.sequence:
-            temp = prediction[1]['air_temperature']
+            temp = prediction.data['air_temperature']
             y=self.temp2y(temp)
-            precipitation_min = prediction[1]['precipitation_amount_min']
-            precipitation_expected = prediction[1]['precipitation_amount']
-            precipitation_max = prediction[1]['precipitation_amount_max']
+            precipitation_min = prediction.data['precipitation_amount_min']
+            precipitation_expected = prediction.data['precipitation_amount']
+            precipitation_max = prediction.data['precipitation_amount_max']
             if precipitation_max > 0:
                 graph+= '    <path d="M {left:} {top:} L {right:} {top:} M {x:} {top:} L {x:} {bottom:} M {left:} {bottom:} L {right:} {bottom:} M {left:} {y:} L {right:} {y:}" style="stroke:{color:};stroke-width:3"/>\n'.format(
                     left=self.h2x(h) - 3,
@@ -197,7 +197,7 @@ class renderer:
         graph = ''
         h=0
         for prediction in self.predictions.sequence:
-            temp = prediction[1]['air_temperature']
+            temp = prediction.data['air_temperature']
             y = self.temp2y(temp)
             if h > 0:
                 graph+= '    <line x1="{prevx:}" y1="{prevy:}" x2="{x:}" y2="{y:}" style="stroke:{color:};stroke-width:4"/>\n'.format(
@@ -215,14 +215,14 @@ class renderer:
         icons = ''
         h=0
         for prediction in self.predictions.sequence:
-            y = self.temp2y(prediction[1]['air_temperature'])
+            y = self.temp2y(prediction.data['air_temperature'])
             h += 1
             icony = y - 1.5*self.hour_width if y > self.height/2 else y + self.hour_width
             icons+= '    <image width="{size:}" height="{size:}" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(
                 x=self.h2x(h)-self.hour_width/2,
                 y=icony,
                 size=self.hour_width,
-                ref='file:{}/weather/svg/{}.svg'.format(self.homedir, prediction[1]['symbol_code']))
+                ref='file:{}/weather/svg/{}.svg'.format(self.homedir, prediction.data['symbol_code']))
         return icons
 
     def render_wind(self):
@@ -230,8 +230,8 @@ class renderer:
         h=0
         for prediction in self.predictions.sequence:
             icons +='    {}\n'.format(windbarb(
-                prediction[1]['wind_speed_percentile_90'],
-                prediction[1]['wind_from_direction'],
+                prediction.data['wind_speed_percentile_90'],
+                prediction.data['wind_from_direction'],
                 self.h2x(h) - 2,
                 self.height - self.bottom_margin + 14,
                 scale=0.4,
@@ -244,13 +244,13 @@ class renderer:
         header = ''
         header+='    <image height="60" width="60" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(
             self.homedir,
-            self.predictions.current[1]['symbol_code'])
+            self.predictions.current.data['symbol_code'])
         header+='    <text x="70" y="55" fill="{color:}" font-size="55">{}°C</text>\n'.format(
-            self.predictions.current[1]['air_temperature'],
+            self.predictions.current.data['air_temperature'],
             color=self.color_temperature)
         header+='    {}\n'.format(windbarb(
-            self.predictions.current[1]['wind_speed_percentile_90'],
-            self.predictions.current[1]['wind_from_direction'],
+            self.predictions.current.data['wind_speed_percentile_90'],
+            self.predictions.current.data['wind_from_direction'],
             300, 35, 0.8, color=self.color_wind))
         header+= '    <text x="350" y="55" fill="{color:}" font-size="40">{place:}</text>\n'.format(
             color=self.color_placename,
