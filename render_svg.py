@@ -263,10 +263,10 @@ class renderer:
         image += self._render_background()
         image += self.render_precipitation()
         image += self.render_temperature()
+        image += self._render_grid(now)
         image += self.render_sky_icons()
         image += self.render_wind()
         image += self.render_header()
-        image += self._render_grid(now)
         image+='  </svg>\n'
         return image
 
