@@ -92,7 +92,7 @@ class renderer:
     def rain2y(self, mm: float):
         return self.temp2y(mm * self.rain_multiplier + self.min_temp)
 
-    def _render_background(self):
+    def render_background(self):
         return '    <path d="M {left:} {top:} L {right:} {top:} L {right:} {bottom:} L {left:} {bottom:} Z" style="fill:{color:}"/>'.format(
             top=0,
             left=0,
@@ -100,7 +100,7 @@ class renderer:
             bottom=self.height,
             color=self.color_background)
 
-    def _render_grid(self, time: datetime):
+    def render_grid(self, time: datetime):
         grid = ''
         grid += '    <path d="M {left:} {top:} L {right:} {top:} L {right:} {bottom:} L {left:} {bottom:} Z" style="fill:none;stroke:{color:};stroke-width:1"/>\n'.format(
             left=self.left_margin,
@@ -260,10 +260,10 @@ class renderer:
     def render_svg(self, forecast: wx_data, now: datetime):
         self._get_limits(forecast.predictions(now))
         image ='  <svg height="{}" width="{}" xmlns="http://www.w3.org/2000/svg">\n'.format(self.height, self.width)
-        image += self._render_background()
+        image += self.render_background()
         image += self.render_precipitation()
         image += self.render_temperature()
-        image += self._render_grid(now)
+        image += self.render_grid(now)
         image += self.render_sky_icons()
         image += self.render_wind()
         image += self.render_header()
