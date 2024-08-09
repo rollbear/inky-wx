@@ -216,13 +216,13 @@ class renderer:
         h=0
         for prediction in self.predictions.sequence:
             y = self.temp2y(prediction.data['air_temperature'])
-            h += 1
             icony = y - 1.5*self.hour_width if y > self.height/2 else y + self.hour_width
             icons+= '    <image width="{size:}" height="{size:}" x="{x:}" y="{y:}" href="{ref:}"/>\n'.format(
                 x=self.h2x(h)-self.hour_width/2,
                 y=icony,
                 size=self.hour_width,
                 ref='file:{}/weather/svg/{}.svg'.format(self.homedir, prediction.data['symbol_code']))
+            h += 1
         return icons
 
     def render_wind(self):
