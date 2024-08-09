@@ -94,26 +94,40 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str, colors
         image+='    <text x="{x:}" y="{y:}" fill="{color:}">{text:}mm</text>\n'.format(y=rain2y(mm), x=width-right_margin+3, text=mm, color=color_precipitation)
 
     h=0
-    prev_rain = 0
+    prev_precipitation_expected = 0
+    prev_precipitation_min = 0
     for prediction in predictions.sequence:
         temp = prediction[1]['air_temperature']
         y=temp2y(temp)
-        if prediction[1]['precipitation_amount_max'] > 0:
+        precipitation_min = prediction[1]['precipitation_amount_min']
+        precipitation_expected = prediction[1]['precipitation_amount']
+        precipitation_max = prediction[1]['precipitation_amount_max']
+        if precipitation_max > 0:
             image+= '    <path d="M {left:} {top:} L {right:} {top:} M {x:} {top:} L {x:} {bottom:} M {left:} {bottom:} L {right:} {bottom:} M {left:} {y:} L {right:} {y:}" style="stroke:{color:};stroke-width:3"/>\n'.format(
                 left=h2x(h)-3,
                 right=h2x(h)+3,
                 x=h2x(h),
-                top=rain2y(prediction[1]['precipitation_amount_max']),
-                bottom=rain2y(prediction[1]['precipitation_amount_min']),
-                y=rain2y(prediction[1]['precipitation_amount']),
+                top=rain2y(precipitation_max),
+                bottom=rain2y(precipitation_min),
+                y=rain2y(precipitation_expected),
                 color=color_precipitation)
             if prev_precipitation_expected > 0 or precipitation_expected > 0:
                 image+= '    <path d="M {prev_x:} {prev_ymin:} L {prev_x:} {prev_y:} L {x:} {y:} L {x:} {ymin} Z" style="stroke:{color:};stroke-width:1;fill:{color:};fill-opacity:0.5"/>\n'.format(
                     prev_x=h2x(h-1),
-                    prev_y=rain2y(prev_rain),
+                    prev_ymin=rain2y(prev_precipitation_min),
+                    prev_y=rain2y(prev_precipitation_expected),
                     x=h2x(h),
                     y=rain2y(precipitation_expected),
                     ymin=rain2y(precipitation_min),
+                    color=color_precipitation
+                )
+            if prev_precipitation_min > 0 or precipitation_min > 0:
+                image+= '    <path d="M {prev_x:} {ymin:} L {prev_x:} {prev_y:} L {x:} {y:} L {x:} {ymin:} Z" style="stroke:{color:};stroke-width:1;fill:{color:}"/>\n'.format(
+                    ymin=rain2y(0),
+                    prev_x=h2x(h-1),
+                    prev_y=rain2y(prev_precipitation_min),
+                    x=h2x(h),
+                    y=rain2y(precipitation_min),
                     color=color_precipitation
                 )
         if h > 0:
@@ -138,7 +152,8 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str, colors
             color=color_wind
         ))
         h+= 1
-        prev_rain = prediction[1]['precipitation_amount']
+        prev_precipitation_expected = precipitation_expected
+        prev_precipitation_min = precipitation_min
         prev_temp = temp
     image+='    <image height="60" width="60" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(homedir, predictions.current[1]['symbol_code'])
     image+='    <text x="70" y="55" fill="{color:}" font-size="55">{}°C</text>\n'.format(predictions.current[1]['air_temperature'], color=color_temperature)
