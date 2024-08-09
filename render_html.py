@@ -130,7 +130,7 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str, colors
             size=hour_width,
             ref='file:{}/weather/svg/{}.svg'.format(homedir, prediction[1]['symbol_code']))
         image +='    {}\n'.format(windbarb(
-            prediction[1]['wind_speed'],
+            prediction[1]['wind_speed_percentile_90'],
             prediction[1]['wind_from_direction'],
             h2x(h)-2,
             height-bottom_margin+14,
@@ -143,7 +143,7 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str, colors
     image+='    <image height="60" width="60" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(homedir, predictions.current[1]['symbol_code'])
     image+='    <text x="70" y="55" fill="{color:}" font-size="55">{}°C</text>\n'.format(predictions.current[1]['air_temperature'], color=color_temperature)
     image+='    {}\n'.format(windbarb(
-        predictions.current[1]['wind_speed'],
+        predictions.current[1]['wind_speed_percentile_90'],
         predictions.current[1]['wind_from_direction'],
         300, 35, 0.8, color=color_wind))
     image+= '    <text x="350" y="55" fill="{color:}" font-size="40">{place:}</text>\n'.format(color=color_placename, place=place)
