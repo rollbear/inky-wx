@@ -5,7 +5,7 @@ import syslog
 from time import sleep
 import pytz
 from wx_data import wx
-from render_html import render_hmtl
+from render_svg import render_svg
 from datetime import datetime, timedelta
 import urllib3
 from cairosvg import svg2png
@@ -103,7 +103,7 @@ def run():
                     forecast = wx(response.json(), response.headers)
                     deadline = forecast.next_update() + timedelta(minutes=1)
             syslog.syslog(syslog.LOG_INFO, "Render new image")
-            svg_image = render_hmtl(forecast, now, display.resolution, name, colors)
+            svg_image = render_svg(forecast, now, display.resolution, name, colors)
             png_image = Image.open(io.BytesIO(svg2png(svg_image, unsafe=True,output_width=600, output_height=448)))
             resized_image = png_image.resize(display.resolution)
             display.set_image(resized_image)

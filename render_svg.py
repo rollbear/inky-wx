@@ -31,7 +31,7 @@ def windbarb(mps, direction, pos_x, pos_y, scale, color):
         base_y+= delta_y
     return '<path d="{path:}" style="stroke:{color:};stroke-width:3" transform="translate({x:} {y:}) rotate({direction:}) scale({scale:})"/>'.format(path=path, x=pos_x, y=pos_y, direction=direction, scale=scale, color=color)
 
-def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str, colors):
+def render_svg(forecast: wx_data, now: datetime, resolution, place: str, colors):
     homedir=os.getcwd()
     width = resolution[0]
     height = resolution[1]
