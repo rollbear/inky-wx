@@ -107,12 +107,13 @@ def render_hmtl(forecast: wx_data, now: datetime, resolution, place: str, colors
                 bottom=rain2y(prediction[1]['precipitation_amount_min']),
                 y=rain2y(prediction[1]['precipitation_amount']),
                 color=color_precipitation)
-            if prev_rain > 0:
-                image+= '    <line x1="{prev_x:}" y1="{prev_y:}" x2="{x:}" y2="{y:}" style="stroke:{color:};stroke-width=3"/>\n'.format(
+            if prev_precipitation_expected > 0 or precipitation_expected > 0:
+                image+= '    <path d="M {prev_x:} {prev_ymin:} L {prev_x:} {prev_y:} L {x:} {y:} L {x:} {ymin} Z" style="stroke:{color:};stroke-width:1;fill:{color:};fill-opacity:0.5"/>\n'.format(
                     prev_x=h2x(h-1),
                     prev_y=rain2y(prev_rain),
                     x=h2x(h),
-                    y=rain2y(prediction[1]['precipitation_amount']),
+                    y=rain2y(precipitation_expected),
+                    ymin=rain2y(precipitation_min),
                     color=color_precipitation
                 )
         if h > 0:
@@ -155,7 +156,7 @@ if __name__ == '__main__':
         x = (kts % 20) * 30 + 10
         y = math.floor(kts / 20)*4*20+10
         img+='<text x="{x:}" y="{y:}">{msg:}</text>\n'.format(x=x,y=y,msg=kts)
-        img+=windbarb(kts*1852/3600, 0, x,y+30, 0.7)
+        img+=windbarb(kts*1852/3600, 0, x,y+30, 0.7, color='black')
     img+='</svg>\n'
     f = open('barbs.svg','w')
     f.write(img)
