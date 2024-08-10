@@ -92,6 +92,12 @@ class renderer:
     def rain2y(self, mm: float):
         return self.temp2y(mm * self.rain_multiplier + self.min_temp)
 
+    def get_icon(self, weather: str):
+        return 'file:{}/weather/svg/{}.svg'.format(
+            self.homedir,
+            weather
+        )
+
     def render_background(self):
         return '    <path d="M {left:} {top:} L {right:} {top:} L {right:} {bottom:} L {left:} {bottom:} Z" style="fill:{color:}"/>'.format(
             top=0,
@@ -221,7 +227,7 @@ class renderer:
                 x=self.h2x(h)-self.hour_width/2,
                 y=icony,
                 size=self.hour_width,
-                ref='file:{}/weather/svg/{}.svg'.format(self.homedir, prediction.data['symbol_code']))
+                ref=self.get_icon(prediction.data['symbol_code']))
             h += 1
         return icons
 
@@ -242,9 +248,8 @@ class renderer:
 
     def render_header(self):
         header = ''
-        header+='    <image height="60" width="60" x="5" y="5" href="file:{}/weather/svg/{}.svg"/>\n'.format(
-            self.homedir,
-            self.predictions.current.data['symbol_code'])
+        header+='    <image height="60" width="60" x="5" y="5" href="{ref:}"/>\n'.format(
+            ref=self.get_icon(self.predictions.current.data['symbol_code']))
         header+='    <text x="70" y="55" fill="{color:}" font-size="55">{}°C</text>\n'.format(
             self.predictions.current.data['air_temperature'],
             color=self.color_temperature)
