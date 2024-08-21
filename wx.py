@@ -16,8 +16,6 @@ import io
 import json
 from colors import colors
 
-USER_AGENT='rollbear inky wx https://github.com/rollbear/inky-wx'
-
 def str2loglevel(name: str):
     if name == 'WARNING':
         return syslog.LOG_WARNING
@@ -84,19 +82,23 @@ def run():
     display = auto()
     renderer = None
     color_settings = None
+    user_agent = None
     while True:
         try:
             new_location = False
+            new_user_agent = False
             if renderer == None:
                 syslog.syslog(syslog.LOG_INFO, "Reading configuration")
                 config = read_config(args.config)
 
                 old_lat = lat
                 old_long = long
+                old_user_agent = user_agent
 
                 lat = config['lat']
                 long = config['long']
                 name = config['placename']
+                user_agent = config['user_agent']
 
                 old_loglevel = loglevel
                 loglevel = str2loglevel(config.get('loglevel', 'INFO'))
@@ -104,17 +106,18 @@ def run():
                     syslog.setlogmask(syslog.LOG_MASK(loglevel))
 
                 new_location = old_lat != old_lat or long != old_long
+                new_user_agent = old_user_agent != user_agent
 
                 color_settings = colors(config.get('colors', {}))
                 renderer = render_svg.renderer(display.resolution, name, color_settings)
 
             now=datetime.now(tz=pytz.UTC)
-            if now >= deadline or new_location:
+            if now >= deadline or new_location or new_user_agent:
                 try:
                     syslog.syslog(syslog.LOG_INFO, "Get data for location lat={lat:}, long={long:}".format(lat=lat,long=long))
                     response = http.request(method='GET',
                                             url='https://api.met.no/weatherapi/locationforecast/2.0/complete?lat={lat:}&lon={lon:}'.format(lat=lat,lon=long),
-                                            headers={"User-Agent": USER_AGENT})
+                                            headers={"User-Agent": user_agent})
                 except Exception as e:
                     syslog.syslog(syslog.LOG_ERROR, "Failed to get data, err={}", e)
                 else:

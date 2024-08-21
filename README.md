@@ -16,37 +16,30 @@ You also need to download [weather icons](https://github.com/metno/weathericons/
 and store them in the directory `weather/svg` relative to the working directory
 of the program.
 
-If you fork this to make a new product instead of contributing,
-changes/fixes/enhancements, then I urge you to please change the `user_agent`
-string in `wx.py` to comply with the `"User-Agent"` header rules, as per the
+You must provide a configuration containing at least your position (lat/long),
+name of the place, and a `"User-Agent"` as per the
 [terms of service](https://developer.yr.no/doc/TermsOfService/) for the API
-from [yr.no](https://yr.no).
+from [yr.no](https://yr.no). *Note* YR may deny the request if the user agent is
+not set correctly.
 
 Usage:
 Create a configuration file named `config.json` in the directory of the python
 files. It must contain:
 
-```JSON
+```JSON-comment
 {
+  "user_agent": "",           //<string: see https://developer.yr.no/doc/TermsOfService/>
   "lat": 0.0,                 //<numerical latitude in degrees North in decimal form>
   "long": 0.0,                //<numerical longitude in degrees East in decimal form>,
   "placename": "Null Island"  //<string with the name of the place at the coordinate>
 }
 ```
 
-Example:
+The configuration file may in addition contain (note that all colors are
+optional, the values shown are the defaults):
 ```JSON
 {
-  "lat": 55.60,
-  "long": 12.75,
-  "placename": "Peberholm"
-}
-```
-
-The configuration file may in addition contain:
-```JSON
-{
-  "colors": {        // all colours are optional, values shown are the defaults
+  "colors": {
     "background":    "white",
     "grid":          "black",
     "temperature":   "red",
