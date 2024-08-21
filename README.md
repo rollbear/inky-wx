@@ -6,6 +6,20 @@ Weather app for [RaspberryPi]() and [Pimoroni](https://shop.pimoroni.com/)
 tested). It uses weather forecast data from
 [yr.no](https://api.met.no/weatherapi/locationforecast/2.0/documentation).
 
+## Example display:
+![display](example_image.png)
+
+Current weather in Stockholm is 15.8°C, partially cloudy and light wind
+from south by southeast.
+
+By 13:00 the sky is expected to be overcast and the temperature just over
+21°C. The afternoon will see rain, expected less than 1mm each hour, but
+maybe nearly 5mm during the hour 17:00-18:00.
+
+For an explaration of how to read wind barbs, see this blog post from
+[windy.app](https://windy.app/blog/learn-to-read-wind-barbs.html)
+
+## Status and how to run:
 Very experimental. Requires a python environment with the Pimoroni Inky
 [Python library](https://github.com/pimoroni/inky).
 Depending on your raspberry pi version and OS version, you may have to search
