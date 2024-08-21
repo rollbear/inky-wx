@@ -5,7 +5,7 @@ import pytz
 import wx_data
 from datetime import datetime, timedelta
 import math
-from cairosvg import svg2png
+from colors import colors
 import os
 
 def windbarb(mps, direction, pos_x, pos_y, scale, color):
@@ -32,7 +32,7 @@ def windbarb(mps, direction, pos_x, pos_y, scale, color):
     return '<path d="{path:}" style="stroke:{color:};stroke-width:3" transform="translate({x:} {y:}) rotate({direction:}) scale({scale:})"/>'.format(path=path, x=pos_x, y=pos_y, direction=direction, scale=scale, color=color)
 
 class renderer:
-    def __init__(self, resolution, place, colors):
+    def __init__(self, resolution, place, colors: colors):
         self.homedir=os.getcwd()
         self.width = resolution[0]
         self.height = resolution[1]
@@ -41,13 +41,7 @@ class renderer:
         self.left_margin = self.width/15
         self.right_margin = self.width/12
 
-        self.color_background = colors.get('background','white')
-        self.color_grid = colors.get('grid', 'black')
-        self.color_temperature = colors.get('temperature', 'red')
-        self.color_precipitation = colors.get('precipitation', 'blue')
-        self.color_wind = colors.get('wind', 'black')
-        self.color_placename = colors.get('placename', 'black')
-        self.color_hour = colors.get('hour', 'black')
+        self.colors = colors
 
         self.graph_width = self.width - self.left_margin - self.right_margin
         self.graph_height = self.height - self.top_margin - self.bottom_margin
@@ -104,7 +98,7 @@ class renderer:
             left=0,
             right=self.width,
             bottom=self.height,
-            color=self.color_background)
+            color=self.colors.background)
 
     def render_grid(self, time: datetime):
         grid = ''
@@ -113,7 +107,7 @@ class renderer:
             top=self.top_margin,
             right=self.width - self.right_margin,
             bottom=self.height - self.bottom_margin,
-            color=self.color_grid)
+            color=self.colors.grid)
         for prediction in self.predictions.sequence:
             time = prediction.timestamp.astimezone()
             break
@@ -123,14 +117,14 @@ class renderer:
                 x=x-10,
                 top=self.top_margin-5,
                 h=datetime.strftime(time + timedelta(hours=h), "%H"),
-                color=self.color_hour)
+                color=self.colors.hour)
 
             if h > 0 and h < 11:
                 grid+='    <line x1="{x:}" y1="{top:}" x2="{x:}" y2="{bottom:}" style="stroke:{color:};stroke-width:1"/>\n'.format(
                     x=x,
                     top=self.top_margin,
                     bottom=self.height-self.bottom_margin,
-                    color=self.color_grid)
+                    color=self.colors.grid)
 
         for t in range(self.min_temp, self.max_temp):
             y = self.temp2y(t)
@@ -138,12 +132,12 @@ class renderer:
                 y=y,
                 left=self.left_margin,
                 right=self.width-self.right_margin,
-                color=self.color_grid)
+                color=self.colors.grid)
 
             grid+='    <text x="2" y="{y:}" fill="{color:}">{text:}°</text>\n'.format(
                 y=y,
                 text=t,
-                color=self.color_temperature)
+                color=self.colors.temperature)
 
         for y in range(self.temp_range):
             mm=round(y/self.rain_multiplier)
@@ -151,7 +145,7 @@ class renderer:
                 y=self.rain2y(mm),
                 x=self.width - self.right_margin + 3,
                 text=mm,
-                color=self.color_precipitation)
+                color=self.colors.precipitation)
 
         return grid
 
@@ -174,7 +168,7 @@ class renderer:
                     top=self.rain2y(precipitation_max),
                     bottom=self.rain2y(precipitation_min),
                     y=self.rain2y(precipitation_expected),
-                    color=self.color_precipitation)
+                    color=self.colors.precipitation)
                 if prev_precipitation_expected > 0 or precipitation_expected > 0:
                     graph+= '    <path d="M {prev_x:} {prev_ymin:} L {prev_x:} {prev_y:} L {x:} {y:} L {x:} {ymin} Z" style="stroke:{color:};stroke-width:1;fill:{color:};fill-opacity:0.5"/>\n'.format(
                         prev_x=self.h2x(h - 1),
@@ -183,7 +177,7 @@ class renderer:
                         x=self.h2x(h),
                         y=self.rain2y(precipitation_expected),
                         ymin=self.rain2y(precipitation_min),
-                        color=self.color_precipitation
+                        color=self.colors.precipitation
                     )
                 if prev_precipitation_min > 0 or precipitation_min > 0:
                     graph+= '    <path d="M {prev_x:} {ymin:} L {prev_x:} {prev_y:} L {x:} {y:} L {x:} {ymin:} Z" style="stroke:{color:};stroke-width:1;fill:{color:}"/>\n'.format(
@@ -192,7 +186,7 @@ class renderer:
                         prev_y=self.rain2y(prev_precipitation_min),
                         x=self.h2x(h),
                         y=self.rain2y(precipitation_min),
-                        color=self.color_precipitation
+                        color=self.colors.precipitation
                     )
             prev_precipitation_min = precipitation_min
             prev_precipitation_expected = precipitation_expected
@@ -211,7 +205,7 @@ class renderer:
                     prevy=prev_y,
                     x=self.h2x(h),
                     y=y,
-                    color=self.color_temperature)
+                    color=self.colors.temperature)
             prev_y = y
             h += 1
 
@@ -241,7 +235,7 @@ class renderer:
                 self.h2x(h) - 2,
                 self.height - self.bottom_margin + 14,
                 scale=0.4,
-                color=self.color_wind
+                color=self.colors.wind
             ))
             h+= 1
         return icons
@@ -252,13 +246,13 @@ class renderer:
             ref=self.get_icon(self.predictions.current.data['symbol_code']))
         header+='    <text x="70" y="55" fill="{color:}" font-size="55">{}°C</text>\n'.format(
             self.predictions.current.data['air_temperature'],
-            color=self.color_temperature)
+            color=self.colors.temperature)
         header+='    {}\n'.format(windbarb(
             self.predictions.current.data['wind_speed_percentile_90'],
             self.predictions.current.data['wind_from_direction'],
-            300, 35, 0.8, color=self.color_wind))
+            300, 35, 0.8, color=self.colors.wind))
         header+= '    <text x="350" y="55" fill="{color:}" font-size="40">{place:}</text>\n'.format(
-            color=self.color_placename,
+            color=self.colors.placename,
             place=self.place)
         return header
 

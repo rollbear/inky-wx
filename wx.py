@@ -14,6 +14,7 @@ from inky.auto import auto
 import argparse
 import io
 import json
+from colors import colors
 
 USER_AGENT='rollbear inky wx https://github.com/rollbear/inky-wx'
 
@@ -29,6 +30,21 @@ def str2loglevel(name: str):
     if name == 'DEBUG':
         return syslog.LOG_DEBUG
 
+def str2display_color(name: str, display):
+    if name == 'black':
+        return display.BLACK
+    if name == 'white':
+        return display.WHITE
+    if name == 'blue':
+        return display.BLUE
+    if name == 'green':
+        return display.GREEN
+    if name == 'orange':
+        return display.ORANGE
+    if name == 'red':
+        return display.RED
+    if name == 'yellow':
+        return display.YELLOW
 
 class wakeup(BaseException):
     pass
@@ -67,6 +83,7 @@ def run():
     http = urllib3.PoolManager()
     display = auto()
     renderer = None
+    color_settings = None
     while True:
         try:
             new_location = False
@@ -88,7 +105,8 @@ def run():
 
                 new_location = old_lat != old_lat or long != old_long
 
-                renderer = render_svg.renderer(display.resolution, name, config.get('colors', {}))
+                color_settings = colors(config.get('colors', {}))
+                renderer = render_svg.renderer(display.resolution, name, color_settings)
 
             now=datetime.now(tz=pytz.UTC)
             if now >= deadline or new_location:
@@ -107,6 +125,8 @@ def run():
             png_image = Image.open(io.BytesIO(svg2png(svg_image, unsafe=True,output_width=600, output_height=448)))
             resized_image = png_image.resize(display.resolution)
             display.set_image(resized_image)
+            border_color = str2display_color(color_settings.background, display)
+            display.set_border(border_color)
             display.show()
             next_hour = now.replace(minute=0, second=0) + timedelta(hours=1)
             waittime = min(deadline - now, next_hour - now) if deadline > now else timedelta(seconds=10)
