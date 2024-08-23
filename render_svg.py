@@ -160,7 +160,7 @@ class renderer:
             precipitation_min = prediction.data['precipitation_amount_min']
             precipitation_expected = prediction.data['precipitation_amount']
             precipitation_max = prediction.data['precipitation_amount_max']
-            if precipitation_max > 0 and h > 0:
+            if (precipitation_max > 0 or prev_precipitation_expected > 0) and h > 0:
                 graph+= '    <path d="M {left:} {top:} L {right:} {top:} M {x:} {top:} L {x:} {bottom:} M {left:} {bottom:} L {right:} {bottom:} M {left:} {y:} L {right:} {y:}" style="stroke:{color:};stroke-width:3"/>\n'.format(
                     left=self.h2x(h) - 3,
                     right=self.h2x(h) + 3,
